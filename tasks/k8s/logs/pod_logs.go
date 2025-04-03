@@ -1,37 +1,40 @@
-package infra
+package logs
 
 import (
+	"fmt"
 	"github.com/newrelic/newrelic-diagnostics-cli/tasks"
 )
 
 // K8sLogs - This struct defined the sample plugin which can be used as a starting point
-type K8sLogs struct {
-	cmdExec tasks.CmdExecFunc
+type K8sPodLogs struct {
+	cmdExec       tasks.CmdExecFunc
+	appName       string
+	labelSelector string
 }
 
 // Identifier - This returns the Category, Subcategory and Name of each task
-func (p K8sLogs) Identifier() tasks.Identifier {
-	return tasks.IdentifierFromString("K8s/Infra/Logs")
+func (p K8sPodLogs) Identifier() tasks.Identifier {
+	return tasks.IdentifierFromString(fmt.Sprintf("K8s/Logs/%s", p.appName))
 }
 
 // Explain - Returns the help text for each individual task
-func (p K8sLogs) Explain() string {
-	return "Collects newrelic-infrastructure pod logs."
+func (p K8sPodLogs) Explain() string {
+	return "Collects  " + p.appName + " pod logs"
 }
 
 // Dependencies - Returns the dependencies for each task.
-func (p K8sLogs) Dependencies() []string {
+func (p K8sPodLogs) Dependencies() []string {
 	return []string{}
 }
 
 // Execute - The core work within each task
-func (p K8sLogs) Execute(options tasks.Options, upstream map[string]tasks.Result) tasks.Result {
+func (p K8sPodLogs) Execute(options tasks.Options, upstream map[string]tasks.Result) tasks.Result {
 	var (
 		res []byte
 		err error
 	)
 
-	namespace := options.Options["namespace"]
+	namespace := options.Options["k8sNamespace"]
 	res, err = p.runCommand(namespace)
 	if err != nil {
 		return tasks.Result{
@@ -44,19 +47,19 @@ func (p K8sLogs) Execute(options tasks.Options, upstream map[string]tasks.Result
 	go tasks.StreamBlob(string(res), stream)
 
 	return tasks.Result{
-		Summary:     "Successfully collected K8s newrelic-infrastructure logs",
+		Summary:     "Successfully collected K8s " + p.appName + " pod logs",
 		Status:      tasks.Info,
-		FilesToCopy: []tasks.FileCopyEnvelope{{Path: "newrelic-infrastructure.log", Stream: stream}},
+		FilesToCopy: []tasks.FileCopyEnvelope{{Path: fmt.Sprintf("%s.log", p.appName), Stream: stream}},
 	}
 }
 
-func (p K8sLogs) runCommand(namespace string) ([]byte, error) {
+func (p K8sPodLogs) runCommand(namespace string) ([]byte, error) {
 	if namespace == "" {
 		return p.cmdExec(
 			kubectlBin,
 			"logs",
 			"-l",
-			"app.kubernetes.io/name=newrelic-infrastructure",
+			p.labelSelector,
 			"--all-containers",
 			"--prefix",
 		)
@@ -67,7 +70,7 @@ func (p K8sLogs) runCommand(namespace string) ([]byte, error) {
 		"-n",
 		namespace,
 		"-l",
-		"app.kubernetes.io/name=newrelic-infrastructure",
+		p.labelSelector,
 		"--all-containers",
 		"--prefix",
 	)

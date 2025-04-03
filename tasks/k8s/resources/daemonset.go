@@ -1,4 +1,4 @@
-package infra
+package resources
 
 import (
 	"github.com/newrelic/newrelic-diagnostics-cli/tasks"
@@ -11,7 +11,7 @@ type K8sDaemonset struct {
 
 // Identifier - This returns the Category, Subcategory and Name of each task
 func (p K8sDaemonset) Identifier() tasks.Identifier {
-	return tasks.IdentifierFromString("K8s/Infra/Daemonset")
+	return tasks.IdentifierFromString("K8s/Resources/Daemonset")
 }
 
 // Explain - Returns the help text for each individual task
@@ -31,7 +31,7 @@ func (p K8sDaemonset) Execute(options tasks.Options, upstream map[string]tasks.R
 		err error
 	)
 
-	namespace := options.Options["namespace"]
+	namespace := options.Options["k8sNamespace"]
 	res, err = p.runCommand(namespace)
 	if err != nil {
 		return tasks.Result{
@@ -46,7 +46,7 @@ func (p K8sDaemonset) Execute(options tasks.Options, upstream map[string]tasks.R
 	return tasks.Result{
 		Summary:     "Successfully collected K8s newrelic-infrastructure daemonset",
 		Status:      tasks.Info,
-		FilesToCopy: []tasks.FileCopyEnvelope{{Path: "k8sInfraDaemonset.txt", Stream: stream}},
+		FilesToCopy: []tasks.FileCopyEnvelope{{Path: "k8sDaemonset.txt", Stream: stream}},
 	}
 }
 
@@ -56,8 +56,6 @@ func (p K8sDaemonset) runCommand(namespace string) ([]byte, error) {
 			kubectlBin,
 			"describe",
 			"daemonset",
-			"-l",
-			"app.kubernetes.io/name=newrelic-infrastructure",
 		)
 	}
 	return p.cmdExec(
@@ -66,7 +64,5 @@ func (p K8sDaemonset) runCommand(namespace string) ([]byte, error) {
 		"daemonset",
 		"-n",
 		namespace,
-		"-l",
-		"app.kubernetes.io/name=newrelic-infrastructure",
 	)
 }
